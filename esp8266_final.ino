@@ -52,11 +52,21 @@ void readWifiCredentials(String& ssid, String& password) {
   EEPROM.end();  
 }
 
+void clearEEPROM() {
+  EEPROM.begin(512); // EEPROM belleğini başlat
+  for (int i = 0; i < 512; ++i) {
+    EEPROM.write(i, 0); // Her bir adresi sıfırla
+  }
+  EEPROM.commit(); // Değişiklikleri kaydet
+  EEPROM.end(); // EEPROM belleğini kapat
+}
+
+
 void setup() {
   Serial.begin(115200);
   pinMode(relayGPIO, OUTPUT);
   digitalWrite(relayGPIO, !RELAY_NO); 
-
+  //clearEEPROM();
   readWifiCredentials(ssid, password);
 
   WiFi.mode(WIFI_AP_STA);
