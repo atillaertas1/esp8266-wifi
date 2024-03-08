@@ -9,6 +9,7 @@ const int relayGPIO = 5;
 
 String ssid;
 String password;
+String currentSsid;
 const char* PARAM_INPUT_1 = "state";
 bool tryingToConnect = false;
 bool isConnected = false;
@@ -53,20 +54,18 @@ void readWifiCredentials(String& ssid, String& password) {
 }
 
 void clearEEPROM() {
-  EEPROM.begin(512); // EEPROM belleğini başlat
+  EEPROM.begin(512); 
   for (int i = 0; i < 512; ++i) {
-    EEPROM.write(i, 0); // Her bir adresi sıfırla
+    EEPROM.write(i, 0); 
   }
-  EEPROM.commit(); // Değişiklikleri kaydet
-  EEPROM.end(); // EEPROM belleğini kapat
+  EEPROM.commit();
+  EEPROM.end();
 }
-
 
 void setup() {
   Serial.begin(115200);
   pinMode(relayGPIO, OUTPUT);
   digitalWrite(relayGPIO, !RELAY_NO); 
-  //clearEEPROM();
   readWifiCredentials(ssid, password);
 
   WiFi.mode(WIFI_AP_STA);
@@ -96,12 +95,29 @@ void setup() {
     }
   });
 
+  server.on("/wifiName", HTTP_GET, [] (AsyncWebServerRequest *request) {
+    if(request->hasParam("ssid")){
+    currentSsid = request->getParam("ssid")->value();
+    Serial.print("Gelen SSID: ");
+    Serial.println(currentSsid);
+      if(currentSsid.equals(ssid)) {
+        request->send(200, "text/plain", "Wifi ismi alın...");
+      }
+    }
+    else{
+      Serial.println("SSID parametresi eksik.");
+      request->send(400, "text/plain", "Hata: SSID parametresi eksik.");
+    }
+  });
+
   server.begin();
 }
 
 void loop() {
   if (WiFi.status() != WL_CONNECTED && !isConnected) {
     if (!tryingToConnect || millis() - lastAttemptTime > attemptInterval) {
+      clearEEPROM();
+      saveWifiCredentials(ssid, password);
       Serial.println("Bağlanıyor: " + ssid);
       WiFi.begin(ssid.c_str(), password.c_str());
       lastAttemptTime = millis();
@@ -111,6 +127,7 @@ void loop() {
     Serial.println("Bağlantı başarılı: " + WiFi.localIP().toString());
     tryingToConnect = false;
     isConnected = true;
+    clearEEPROM();
     saveWifiCredentials(ssid, password);
     WiFi.softAPdisconnect(true);
   }
