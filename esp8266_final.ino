@@ -18,7 +18,6 @@ const unsigned long attemptInterval = 5000; // 5 saniye
 
 AsyncWebServer server(80);
 
-
 void saveWifiCredentials(String ssid, String password) {
   EEPROM.begin(512);
   for (int i = 0; i < ssid.length(); ++i) {
@@ -86,13 +85,19 @@ void setup() {
   });
 
   server.on("/update", HTTP_GET, [] (AsyncWebServerRequest *request) {
+    String state;
     if (request->hasParam(PARAM_INPUT_1)) {
-      String state = request->getParam(PARAM_INPUT_1)->value();
+      state = request->getParam(PARAM_INPUT_1)->value();
       digitalWrite(relayGPIO, (RELAY_NO ? !state.toInt() : state.toInt()));
-      request->send(200, "text/plain", "OK");
     } else {
-      request->send(400, "text/plain", "No message sent");
+      state = "No message sent";
     }
+    
+    AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", state);
+    response->addHeader("Access-Control-Allow-Origin", "*");
+    response->addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    response->addHeader("Access-Control-Allow-Headers", "Content-Type");
+    request->send(response);
   });
 
   server.on("/wifiName", HTTP_GET, [] (AsyncWebServerRequest *request) {
@@ -101,13 +106,25 @@ void setup() {
     Serial.print("Gelen SSID: ");
     Serial.println(currentSsid);
       if(currentSsid.equals(ssid)) {
-        request->send(200, "text/plain", "Wifi ismi alın...");
+        AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", "Wifi ismi alın...");
+        response->addHeader("Access-Control-Allow-Origin", "*");
+        request->send(response);
       }
     }
     else{
       Serial.println("SSID parametresi eksik.");
-      request->send(400, "text/plain", "Hata: SSID parametresi eksik.");
+      AsyncWebServerResponse *response = request->beginResponse(400, "text/plain", "Hata: SSID parametresi eksik.");
+      response->addHeader("Access-Control-Allow-Origin", "*");
+      request->send(response);
     }
+  });
+
+  server.on("/update", HTTP_OPTIONS, [](AsyncWebServerRequest *request) {
+    AsyncWebServerResponse *response = request->beginResponse(204); // No Content response
+    response->addHeader("Access-Control-Allow-Origin", "*");
+    response->addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    response->addHeader("Access-Control-Allow-Headers", "Content-Type");
+    request->send(response);
   });
 
   server.begin();
